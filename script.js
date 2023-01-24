@@ -47,18 +47,18 @@ class Workout {
   date = new Date();
   id = (Date.now() + '').slice(-10);
 
-  constructor(coords, distance, duration, city, country) {
+  constructor(coords, distance, duration, city, country, weatherData) {
     this.coords = coords;
     this.distance = distance;
     this.duration = duration;
     this.city = city;
     this.country = country;
+    this.weatherData = weatherData;
   }
 
   setDescription() {
     // prettier-ignore
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    console.log('Type:', this.type);
 
     let setType;
 
@@ -70,15 +70,15 @@ class Workout {
 
     this.description = `${setType} in ${this.city}, ${this.country} on ${
       months[this.date.getMonth()]
-    }  ${this.date.getDate()}`;
+    }  ${this.date.getDate()} (${this.weatherData})`;
   }
 }
 
 class Running extends Workout {
   type = 'running';
 
-  constructor(coords, distance, duration, city, country, cadence) {
-    super(coords, distance, duration, city, country);
+  constructor(coords, distance, duration, city, country, weatherData, cadence) {
+    super(coords, distance, duration, city, country, weatherData);
     this.cadence = cadence;
     this.calcPace();
     this.setDescription();
@@ -92,8 +92,16 @@ class Running extends Workout {
 class Cycling extends Workout {
   type = 'cycling';
 
-  constructor(coords, distance, duration, city, country, elevationGain) {
-    super(coords, distance, duration, city, country);
+  constructor(
+    coords,
+    distance,
+    duration,
+    city,
+    country,
+    weatherData,
+    elevationGain
+  ) {
+    super(coords, distance, duration, city, country, weatherData);
     this.elevationGain = elevationGain;
     this.calcSpeed();
     this.setDescription();
@@ -117,6 +125,7 @@ class App {
   #mapZoomLevel = 17;
   #workOuts;
   #position;
+  #weatherData;
 
   constructor() {
     // Get position
@@ -184,6 +193,8 @@ class App {
     this.#getCountry(position).then(data => {
       this.#position = data;
     });
+
+    this.#getWeather(position);
   }
 
   #showForm(mapE) {
@@ -263,6 +274,7 @@ class App {
         duration,
         city,
         country,
+        this.#weatherData,
         cadence
       );
     }
@@ -284,10 +296,10 @@ class App {
         duration,
         city,
         country,
+        this.#weatherData,
         elevation
       );
     }
-    console.log(workout);
     this.#workouts.push(workout);
 
     // hide form
@@ -301,9 +313,6 @@ class App {
 
     // Set local storage to workout
     this.#setLocalStorage();
-
-    // Get Weather Data
-    this.#getWeather(workout);
 
     this.#workOuts = this.#workouts;
   }
@@ -405,8 +414,6 @@ class App {
         duration: 1,
       },
     });
-
-    console.log(this.#workouts);
   }
 
   #setLocalStorage() {
@@ -434,14 +441,16 @@ class App {
     // The objects coming from localStorage would not inherit the methods it has before being saved to loval storage
   }
 
-  async #getWeather(workout) {
+  async #getWeather(position) {
     try {
+      const {latitude: lat, longitude: lng} = position.coords;
       const weather = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${workout.coords[0]}&lon=${workout.coords[1]}&appid=52e092eb7fe556f72f119a9bc9fdb038`
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=52e092eb7fe556f72f119a9bc9fdb038`
       );
 
       const response = await weather.json();
-      console.log(response);
+      const degree = response.main.temp - 273.15;
+      this.#weatherData = `${degree.toFixed(1)}℃`;
     } catch (error) {
       console.error(error);
     }
