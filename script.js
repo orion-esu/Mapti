@@ -47,27 +47,38 @@ class Workout {
   date = new Date();
   id = (Date.now() + '').slice(-10);
 
-  constructor(coords, distance, duration) {
+  constructor(coords, distance, duration, city, country) {
     this.coords = coords;
     this.distance = distance;
     this.duration = duration;
+    this.city = city;
+    this.country = country;
   }
 
   setDescription() {
     // prettier-ignore
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    console.log('Type:', this.type);
 
-    this.description = `${this.type[0].toUpperCase()}${this.type.slice(1)} on ${
+    let setType;
+
+    if (this.type === 'running') {
+      setType = this.type[0].toUpperCase() + this.type.slice(1, 3);
+    } else {
+      setType = this.type[0].toUpperCase() + this.type.slice(1, 4) + 'e';
+    }
+
+    this.description = `${setType} in ${this.city}, ${this.country} on ${
       months[this.date.getMonth()]
-    } ${this.date.getDate()}`;
+    }  ${this.date.getDate()}`;
   }
 }
 
 class Running extends Workout {
   type = 'running';
 
-  constructor(coords, distance, duration, cadence) {
-    super(coords, distance, duration);
+  constructor(coords, distance, duration, city, country, cadence) {
+    super(coords, distance, duration, city, country);
     this.cadence = cadence;
     this.calcPace();
     this.setDescription();
@@ -81,8 +92,8 @@ class Running extends Workout {
 class Cycling extends Workout {
   type = 'cycling';
 
-  constructor(coords, distance, duration, elevationGain) {
-    super(coords, distance, duration);
+  constructor(coords, distance, duration, city, country, elevationGain) {
+    super(coords, distance, duration, city, country);
     this.elevationGain = elevationGain;
     this.calcSpeed();
     this.setDescription();
@@ -105,13 +116,11 @@ class App {
   #workouts = [];
   #mapZoomLevel = 17;
   #workOuts;
+  #position;
 
   constructor() {
     // Get position
     this.#getPosition();
-
-    // Load Map
-    this.#loadMap();
 
     // Get data from local storage
     this.#getLocalStorage();
@@ -138,21 +147,27 @@ class App {
     ctaInputType.addEventListener('click', this.#sortWorkout.bind(this));
   }
 
-  async #getPosition() {
+  #getPosition() {
     if (navigator.geolocation);
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject);
-    });
+
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        // Success callback
+        this.#loadMap(position);
+      },
+      error => {
+        // Error callback
+        console.log(error);
+      }
+    );
   }
 
-  async #loadMap() {
-    const position = await this.#getPosition();
+  #loadMap(position) {
     const { latitude, longitude } = position.coords;
     const coords = [latitude, longitude];
-    console.log(coords);
 
     this.#map = L.map('map').setView(coords, this.#mapZoomLevel); // map is the result of calling leaflet.map
-    
+
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -164,6 +179,10 @@ class App {
     // Rendering the object gotten from local storage after the map has been loaded
     this.#workouts.forEach(work => {
       this.#renderWorkoutMarker(work);
+    });
+
+    this.#getCountry(position).then(data => {
+      this.#position = data;
     });
   }
 
@@ -191,6 +210,23 @@ class App {
     inputCadence.closest('.form__row').classList.toggle('form__row--hidden');
   }
 
+  async #getCountry(position) {
+    try {
+      const { latitude: lat, longitude: lng } = position.coords;
+      const data = await fetch(
+        `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&apiKey=ef814b2d6071423ab658fbcf6c48303d`
+      );
+      if (!data.ok) throw new Error('Problem Fetching Your Location Data');
+      const response = await data.json();
+      const dataProperties = response.features[0].properties;
+
+      return dataProperties;
+    } catch (error) {
+      console.error(error.message);
+      alert(error.message);
+    }
+  }
+
   #newWorkout(e) {
     e.preventDefault();
 
@@ -204,6 +240,8 @@ class App {
     const distance = +inputDistance.value;
     const duration = +inputDuration.value;
     const { lat, lng } = this.#mapEvent.latlng;
+    const city = this.#position.city;
+    const country = this.#position.country;
     let workout;
 
     // IF workout runnning, create running object
@@ -219,7 +257,14 @@ class App {
         // if not true return the alert function
         return alert('Value must be a positive number');
 
-      workout = new Running([lat, lng], distance, duration, cadence);
+      workout = new Running(
+        [lat, lng],
+        distance,
+        duration,
+        city,
+        country,
+        cadence
+      );
     }
 
     // IF workout cycling, create running object
@@ -233,8 +278,16 @@ class App {
       )
         return alert('Value must be a positive number cycling');
 
-      workout = new Cycling([lat, lng], distance, duration, elevation);
+      workout = new Cycling(
+        [lat, lng],
+        distance,
+        duration,
+        city,
+        country,
+        elevation
+      );
     }
+    console.log(workout);
     this.#workouts.push(workout);
 
     // hide form
@@ -249,8 +302,10 @@ class App {
     // Set local storage to workout
     this.#setLocalStorage();
 
+    // Get Weather Data
+    this.#getWeather(workout);
+
     this.#workOuts = this.#workouts;
-    console.log(this.#workOuts);
   }
 
   #renderWorkoutMarker(workout) {
@@ -377,6 +432,19 @@ class App {
     // console.log(this.#workouts);
 
     // The objects coming from localStorage would not inherit the methods it has before being saved to loval storage
+  }
+
+  async #getWeather(workout) {
+    try {
+      const weather = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${workout.coords[0]}&lon=${workout.coords[1]}&appid=52e092eb7fe556f72f119a9bc9fdb038`
+      );
+
+      const response = await weather.json();
+      console.log(response);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   #sortWorkout() {
