@@ -134,6 +134,9 @@ class App {
     // Get data from local storage
     this.#getLocalStorage();
 
+    // Show Message
+    this.#showMessage();
+
     // Attach event listener
     form.addEventListener('submit', this.#newWorkout.bind(this));
     inputType.addEventListener('change', this.#toggleElevationField);
@@ -195,6 +198,9 @@ class App {
     });
 
     this.#getWeather(position);
+
+    if (this.#workouts !== 0) return;
+    this.#centerMap(this.#workouts);
   }
 
   #centerMap(workOuts) {
@@ -207,9 +213,22 @@ class App {
   }
 
   #showForm(mapE) {
+    this.#hideMessage();
     this.#mapEvent = mapE;
     form.classList.remove('hidden');
     inputDistance.focus();
+  }
+
+  #showMessage() {
+    const html = `
+    <p class="msg">Click anywhere on the Map to Log Workout. After logging workout, click on the workout to move to the marker on the map</p>
+    `;
+
+    containerWorkouts.insertAdjacentHTML('beforeend', html);
+  }
+
+  #hideMessage() {
+    document.querySelector('.msg').remove();
   }
 
   #hideForm() {
@@ -324,9 +343,6 @@ class App {
     this.#setLocalStorage();
 
     this.#workOuts = this.#workouts;
-
-    // Center Map
-    this.#centerMap(this.#workOuts);
   }
 
   #renderWorkoutMarker(workout) {
