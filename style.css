@@ -85,7 +85,7 @@ a:visited {
 }
 
 .workout__title {
-  font-size: 1.7rem;
+  font-size: 1.5rem;
   font-weight: 600;
   grid-column: 1 / 4;
 }
@@ -254,7 +254,7 @@ a:visited {
   justify-content: center;
   column-gap: 4rem;
   align-items: center;
-  margin-block: 2rem;
+  margin-top: 2rem;
 }
 
 .cta__input {
@@ -270,4 +270,23 @@ a:visited {
 .cta__label {
   font-size: 1.4rem;
   margin-right: 0.5rem;
+}
+
+.msg {
+  font-family: inherit;
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.error {
+  position: absolute;
+  background-color: red;
+  color: rgba(255, 255, 255, 1);
+  font-family: inherit;
+  font-weight: 600;
+  padding: 1rem 1rem;
+  font-size: 1.5rem;
+  left: 42vw;
+  z-index: 1000;
+  top: 0;
 }
