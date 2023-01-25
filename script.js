@@ -197,6 +197,15 @@ class App {
     this.#getWeather(position);
   }
 
+  #centerMap(workOuts) {
+    let bounds = [];
+    workOuts.forEach(points => {
+      bounds.push(points.coords);
+    });
+
+    this.#map.fitBounds(bounds);
+  }
+
   #showForm(mapE) {
     this.#mapEvent = mapE;
     form.classList.remove('hidden');
@@ -315,6 +324,9 @@ class App {
     this.#setLocalStorage();
 
     this.#workOuts = this.#workouts;
+
+    // Center Map
+    this.#centerMap(this.#workOuts);
   }
 
   #renderWorkoutMarker(workout) {
@@ -422,28 +434,26 @@ class App {
 
     // Local storage is a small api ant it's adviced to use for small data handling because using it to store large amount of data would slow down your application.
 
+    // store data in local storage
     localStorage.setItem('workouts', JSON.stringify(this.#workouts)); // WE use JSON stringify to convert the object into a string so it can be saved in the localStorage.
   }
 
-  #getLocalStorage() {
+  async #getLocalStorage() {
     const data = JSON.parse(localStorage.getItem('workouts'));
 
     if (!data) return;
 
     this.#workouts = data;
-
     this.#workouts.forEach(work => {
       this.#renderWorkout(work);
     });
-
-    // console.log(this.#workouts);
 
     // The objects coming from localStorage would not inherit the methods it has before being saved to loval storage
   }
 
   async #getWeather(position) {
     try {
-      const {latitude: lat, longitude: lng} = position.coords;
+      const { latitude: lat, longitude: lng } = position.coords;
       const weather = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=52e092eb7fe556f72f119a9bc9fdb038`
       );
