@@ -92,7 +92,6 @@ class App {
   #workOuts;
   #position;
   #weatherData;
-  #geoLocationPosition;
 
   constructor() {
     // Get position
@@ -141,9 +140,13 @@ class App {
 
   #consumePromise() {
     this.#getPosition()
-      .then(
-        position => this.#loadMap(position) // Load Map using the fulfilled value of the promise
-      )
+      .then(position => {
+        // Load Map using the fulfilled value of the promise
+        this.#loadMap(position);
+
+        // Get Weather
+        this.#getWeather(position);
+      })
       .catch(error => {
         // Throw Manual Error
         if (error.code === error.PERMISSION_DENIED) {
@@ -159,7 +162,6 @@ class App {
   #loadMap(position) {
     const { latitude, longitude } = position.coords;
     const coords = [latitude, longitude];
-    this.#geoLocationPosition = position;
 
     this.#map = L.map('map').setView(coords, this.#mapZoomLevel); // map is the result of calling leaflet.map
 
@@ -335,9 +337,6 @@ class App {
     this.#setLocalStorage();
 
     this.#workOuts = this.#workouts;
-
-    // Get Weather
-    this.#getWeather(this.#geoLocationPosition);
   }
 
   #renderWorkoutMarker(workout) {
@@ -457,12 +456,12 @@ class App {
 
   async #getWeather(position) {
     try {
+      console.log(position);
       const { latitude: lat, longitude: lng } = position.coords;
       const weather = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=52e092eb7fe556f72f119a9bc9fdb038`
       );
-      if (!weather.ok && weather.status === 404)
-        throw new Error('Problem Fetching Weather Data');
+      if (!weather.ok) throw new Error('Problem Fetching Weather Data');
 
       const response = await weather.json();
       const degree = response.main.temp - 273.15;
